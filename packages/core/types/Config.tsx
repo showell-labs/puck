@@ -1,4 +1,4 @@
-import type { JSX, ReactNode } from "react";
+import type { JSX, ReactNode, ReactElement } from "react";
 import { BaseField, Field, Fields } from "./Fields";
 import { ComponentData, Metadata, RootData } from "./Data";
 
@@ -172,7 +172,18 @@ type ConfigInternal<
     >;
   };
   root?: RootConfigInternal<RootProps, UserField>;
+  overrides?: {
+    div?: RenderFunc<{
+      children?: ReactNode;
+      className?: string;
+      style?: React.CSSProperties;
+    }>;
+  };
 };
+
+type RenderFunc<
+  Props extends { [key: string]: any } = { children: ReactNode }
+> = (props: Props) => ReactElement;
 
 // This _deliberately_ casts as any so the user can pass in something that widens the types
 export type DefaultComponents = Record<string, any>;

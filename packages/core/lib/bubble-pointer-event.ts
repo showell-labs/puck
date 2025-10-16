@@ -2,8 +2,39 @@ export interface BubbledPointerEventType extends PointerEvent {
   originalTarget: EventTarget | null;
 }
 
+class RNEvent {
+  type: string;
+  bubbles: boolean;
+  cancelable: boolean;
+  defaultPrevented: boolean;
+
+  constructor(
+    type: string,
+    data: { bubbles?: boolean; cancelable?: boolean } = {}
+  ) {
+    this.type = type;
+    this.bubbles = !!data.bubbles;
+    this.cancelable = !!data.cancelable;
+    this.defaultPrevented = false;
+  }
+
+  preventDefault() {
+    if (this.cancelable) {
+      this.defaultPrevented = true;
+    }
+  }
+
+  stopPropagation() {}
+  stopImmediatePropagation() {}
+}
+
 // Necessary to enable server build
-const BaseEvent = typeof PointerEvent !== "undefined" ? PointerEvent : Event;
+const BaseEvent =
+  typeof PointerEvent !== "undefined"
+    ? PointerEvent
+    : typeof Event !== "undefined"
+    ? Event
+    : RNEvent;
 
 export class BubbledPointerEvent extends BaseEvent {
   _originalTarget: EventTarget | null = null;

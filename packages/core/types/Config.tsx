@@ -5,7 +5,7 @@ import { ComponentData, Metadata, RootData } from "./Data";
 import { AsFieldProps, WithChildren, WithId, WithPuckProps } from "./Utils";
 import { AppState } from "./AppState";
 import { DefaultComponentProps, DefaultRootFieldProps } from "./Props";
-import { Permissions } from "./API";
+import { Permissions, RenderOverrides } from "./API";
 import { DropZoneProps } from "../components/DropZone/types";
 import {
   ComponentConfigParams,
@@ -172,13 +172,7 @@ type ConfigInternal<
     >;
   };
   root?: RootConfigInternal<RootProps, UserField>;
-  overrides?: {
-    div?: RenderFunc<{
-      children?: ReactNode;
-      className?: string;
-      style?: React.CSSProperties;
-    }>;
-  };
+  overrides?: RenderOverrides;
 };
 
 type RenderFunc<

@@ -28,7 +28,6 @@ import type {
   Metadata,
   AsFieldProps,
   DefaultComponentProps,
-  ComponentData,
 } from "../../types";
 
 import { PuckAction } from "../../reducer";

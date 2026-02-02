@@ -2,7 +2,7 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "build-core": "turbo run build --filter=@measured/puck && cd packages/core && yarn pack",
+    "build-core": "turbo run build --filter=@puckeditor/core && cd packages/core && yarn pack",
     "dev": "rimraf packages/core/dist && turbo run dev --filter=demo",
     "lint": "turbo run lint",
     "format:check": "prettier --check \"**/*.{ts,tsx,md,mdx,css}\"",

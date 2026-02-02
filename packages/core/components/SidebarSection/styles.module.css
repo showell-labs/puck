@@ -15,6 +15,9 @@
   border-bottom: 1px solid var(--puck-color-grey-09);
   border-top: 1px solid var(--puck-color-grey-09);
   overflow-x: auto;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .SidebarSection--noBorderTop > .SidebarSection-title {

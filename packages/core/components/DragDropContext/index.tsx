@@ -37,6 +37,7 @@ import { useSensors } from "../../lib/dnd/use-sensors";
 import { useSafeId } from "../../lib/use-safe-id";
 import { getFrame } from "../../lib/get-frame";
 import { effect } from "@dnd-kit/state";
+import { getSlotFieldFromPropPath } from "../../lib/get-slot-field-from-prop-path";
 
 const DEBUG = false;
 
@@ -464,6 +465,37 @@ const DragDropContextClient = ({
             }
           } else {
             targetZone = target.id.toString();
+            targetIndex = 0;
+          }
+
+          const [targetZoneId, targetZoneProp] = targetZone.split(":");
+          const { config, state } = appStore.getState();
+          const targetZoneComponentType =
+            targetZoneId === "root"
+              ? "root"
+              : targetZoneId
+              ? state.indexes.nodes[targetZoneId]?.data.type
+              : null;
+          const targetZoneFields =
+            targetZoneComponentType === "root"
+              ? config.root?.fields
+              : targetZoneComponentType
+              ? config.components[targetZoneComponentType]?.fields
+              : undefined;
+          const targetSlotField = targetZoneProp
+            ? getSlotFieldFromPropPath(targetZoneFields, targetZoneProp)
+            : null;
+
+          const forcedNewItemPosition =
+            dragMode.current === "new"
+              ? targetSlotField?.newItemPosition
+              : null;
+
+          if (forcedNewItemPosition === "end") {
+            const targetZoneContentIds =
+              state.indexes.zones[targetZone]?.contentIds;
+            targetIndex = targetZoneContentIds?.length ?? targetIndex;
+          } else if (forcedNewItemPosition === "start") {
             targetIndex = 0;
           }
 

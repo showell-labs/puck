@@ -109,11 +109,12 @@ type Props = {
 
 ## Params
 
-| Param                   | Example                      | Type   | Status   |
-| ----------------------- | ---------------------------- | ------ | -------- |
-| [`type`](#type)         | `type: "slot"`               | "slot" | Required |
-| [`allow`](#allow)       | `allow: ["HeadingBlock"]`    | Array  | -        |
-| [`disallow`](#disallow) | `disallow: ["HeadingBlock"]` | Array  | -        |
+| Param                                 | Example                      | Type               | Status   |
+| ------------------------------------- | ---------------------------- | ------------------ | -------- |
+| [`type`](#type)                       | `type: "slot"`               | "slot"             | Required |
+| [`newItemPosition`](#newitemposition) | `newItemPosition: "end"`     | `"start" \| "end"` | -        |
+| [`allow`](#allow)                     | `allow: ["HeadingBlock"]`    | Array              | -        |
+| [`disallow`](#disallow)               | `disallow: ["HeadingBlock"]` | Array              | -        |
 
 ## Required params
 
@@ -137,6 +138,31 @@ const config = {
 ```
 
 ## Optional params
+
+### `newItemPosition`
+
+Force where newly inserted components are placed in this slot, regardless of cursor position while dragging.
+
+Options:
+
+- `"start"` - insert at the beginning of the slot
+- `"end"` - insert at the end of the slot
+
+```tsx copy {7}
+const config = {
+  components: {
+    Example: {
+      fields: {
+        items: {
+          type: "slot",
+          newItemPosition: "end",
+        },
+      },
+      // ...
+    },
+  },
+};
+```
 
 ### `allow`
 

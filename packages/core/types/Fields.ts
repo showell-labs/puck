@@ -171,6 +171,7 @@ export interface SlotField extends BaseField {
   type: "slot";
   allow?: string[];
   disallow?: string[];
+  newItemPosition?: "start" | "end";
 }
 
 export type Field<ValueType = any, UserField extends {} = {}> =

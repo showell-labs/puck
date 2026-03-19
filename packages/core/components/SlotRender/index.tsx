@@ -1,6 +1,7 @@
 "use client";
 
 import { useShallow } from "zustand/react/shallow";
+import { DropZoneProps } from "../DropZone/types";
 import { useAppStore } from "../../store";
 import { SlotRenderPure } from "./server";
 export * from "./server";
@@ -8,10 +9,11 @@ export * from "./server";
 export const ContextSlotRender = ({
   componentId,
   zone,
+  ...slotProps
 }: {
   componentId: string;
   zone: string;
-}) => {
+} & Omit<DropZoneProps, "zone">) => {
   const config = useAppStore((s) => s.config);
   const metadata = useAppStore((s) => s.metadata);
   const slotContent = useAppStore(
@@ -29,6 +31,7 @@ export const ContextSlotRender = ({
     <SlotRenderPure
       content={slotContent}
       zone={zone}
+      {...slotProps}
       config={config}
       metadata={metadata}
     />

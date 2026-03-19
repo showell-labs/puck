@@ -18,6 +18,7 @@ export function useFieldTransformsTracked<
 ): T["props"] {
   const prevProps = useRef<Record<string, any>>(null);
   const prevResult = useRef<Record<string, any>>(item.props);
+  const prevMappers = useRef<Mappers | null>(null);
 
   const mappers = useMemo<Mappers>(
     () => buildMappers(transforms, readOnly, forceReadOnly),
@@ -27,6 +28,7 @@ export function useFieldTransformsTracked<
   const transformedProps = useMemo(() => {
     // Filter to changed fields only (shallow comparison)
     const changedProps: Record<string, any> = {};
+    const mappersChanged = prevMappers.current !== mappers;
 
     const componentConfig =
       item.type === "root" ? config.root : config.components?.[item.type];
@@ -38,7 +40,8 @@ export function useFieldTransformsTracked<
 
       if (
         !prevProps.current ||
-        item.props[fieldName] !== prevProps.current[fieldName]
+        item.props[fieldName] !== prevProps.current[fieldName] ||
+        (mappersChanged && fieldType === "slot")
       ) {
         changedProps[fieldName] = item.props[fieldName];
 
@@ -52,6 +55,7 @@ export function useFieldTransformsTracked<
     changedProps.id = item.props.id;
 
     prevProps.current = item.props;
+    prevMappers.current = mappers;
 
     const mapped = mapFields(
       { ...item, props: changedProps },

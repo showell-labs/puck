@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { Config } from "../../../types";
 import "@testing-library/jest-dom";
 
@@ -178,5 +178,98 @@ describe("Puck", () => {
         },
       }
     `);
+  });
+
+  it("preserves slot custom wrappers during async resolve loading and after completion", async () => {
+    jest.useFakeTimers();
+
+    try {
+      let resolveParentData: (() => void) | null = null;
+
+      const parentResolveData = jest.fn(
+        async () =>
+          await new Promise<{ props: Record<string, never> }>((resolve) => {
+            resolveParentData = () => resolve({ props: {} });
+          })
+      );
+
+      const CarouselScrollView = ({
+        children,
+        ...props
+      }: {
+        children: React.ReactNode;
+      }) => (
+        <section {...props} data-testid="carousel-scroll-view">
+          {children}
+        </section>
+      );
+
+      const loadingConfig: Config = {
+        root: {
+          render: ({ children }) => <div>{children}</div>,
+        },
+        components: {
+          Parent: {
+            fields: {
+              items: { type: "slot" },
+            },
+            resolveData: parentResolveData,
+            render: ({ items: Items }: any) => (
+              <Items as={CarouselScrollView} className="carousel-slot" />
+            ),
+          },
+          Child: {
+            render: () => <div>Child</div>,
+          },
+        },
+      };
+
+      render(
+        <Puck
+          config={loadingConfig}
+          data={{
+            content: [
+              {
+                type: "Parent",
+                props: {
+                  id: "Parent-1",
+                  items: [{ type: "Child", props: { id: "Child-1" } }],
+                },
+              },
+            ],
+          }}
+          iframe={{ enabled: false }}
+        />
+      );
+
+      await flush();
+
+      expect(parentResolveData).toHaveBeenCalledTimes(1);
+
+      const wrapper = screen.getByTestId("carousel-scroll-view");
+      expect(wrapper).toHaveAttribute("data-puck-dropzone");
+
+      await act(async () => {
+        jest.advanceTimersByTime(60);
+      });
+
+      await waitFor(() => {
+        const loadingWrapper = screen.getByTestId("carousel-scroll-view");
+        expect(loadingWrapper).not.toHaveAttribute("data-puck-dropzone");
+      });
+
+      await act(async () => {
+        resolveParentData?.();
+      });
+
+      await flush();
+
+      await waitFor(() => {
+        const resolvedWrapper = screen.getByTestId("carousel-scroll-view");
+        expect(resolvedWrapper).toHaveAttribute("data-puck-dropzone");
+      });
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

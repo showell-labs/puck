@@ -6,8 +6,13 @@ import {
   WithPuckProps,
 } from "../../../types";
 import { RichTextRenderFallback } from "../components/RenderFallback";
-import { generateId } from "../../../lib/generate-id";
 import { mapDeep } from "./mapDeep";
+
+const RichTextRender = lazy(() =>
+  import("../components/Render").then((m) => ({
+    default: m.RichTextRender,
+  }))
+);
 
 type RichtextPath = {
   path: string[];
@@ -61,18 +66,14 @@ export function useRichtextProps(
   const richtextProps = useMemo(() => {
     if (!richtextKeys?.length) return {};
 
-    const RichTextRender = lazy(() =>
-      import("../components/Render").then((m) => ({
-        default: m.RichTextRender,
-      }))
-    );
-
     let result = { ...props };
 
     for (const { path, field } of richtextKeys) {
       result = mapDeep(result, path, (content) => (
         <Suspense
-          key={generateId()}
+          // Deterministic key to avoid hydration mismatch. No array index needed
+          // because mapDeep places each Suspense in a separate array object, not as siblings.
+          key={path.join(".")}
           fallback={<RichTextRenderFallback content={content} />}
         >
           <RichTextRender content={content} field={field} />

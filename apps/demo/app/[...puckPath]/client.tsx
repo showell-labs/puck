@@ -27,6 +27,13 @@ export function Client({ path, isEdit }: { path: string; isEdit: boolean }) {
   if (!isClient) return null;
 
   const params = new URL(window.location.href).searchParams;
+  const requestedDndBehavior = params.get("dndBehavior");
+  const dndBehavior =
+    requestedDndBehavior === "auto" ||
+    requestedDndBehavior === "fluid" ||
+    requestedDndBehavior === "static"
+      ? requestedDndBehavior
+      : undefined;
 
   if (isEdit) {
     return (
@@ -42,10 +49,13 @@ export function Client({ path, isEdit }: { path: string; isEdit: boolean }) {
           iframe={{
             enabled: params.get("disableIframe") === "true" ? false : true,
           }}
+          dnd={{
+            behavior: dndBehavior,
+          }}
           fieldTransforms={{
             userField: ({ value }) => value, // Included to check types
           }}
-          _experimentalFullScreenCanvas={false}
+          _experimentalVirtualization
           overrides={{
             fieldTypes: {
               // Example of user field provided via overrides

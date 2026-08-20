@@ -2,6 +2,8 @@
 
 exports[`Puck should generate the correct state on mount 1`] = `
 {
+  "_experimentalFullScreenCanvas": false,
+  "_experimentalVirtualization": false,
   "componentState": {},
   "config": {
     "components": {
@@ -16,7 +18,9 @@ exports[`Puck should generate the correct state on mount 1`] = `
       "render": [Function],
     },
   },
+  "dictionary": {},
   "dispatch": [Function],
+  "dnd": undefined,
   "fieldTransforms": {},
   "fields": {
     "fields": {
@@ -80,6 +84,7 @@ exports[`Puck should generate the correct state on mount 1`] = `
               "focus": null,
             },
             "isDragging": false,
+            "itemExpanded": {},
             "itemSelector": null,
             "leftSideBarVisible": true,
             "plugin": {
@@ -142,6 +147,7 @@ exports[`Puck should generate the correct state on mount 1`] = `
           "focus": null,
         },
         "isDragging": false,
+        "itemExpanded": {},
         "itemSelector": null,
         "leftSideBarVisible": true,
         "plugin": {
@@ -167,13 +173,16 @@ exports[`Puck should generate the correct state on mount 1`] = `
   },
   "iframe": {
     "enabled": false,
+    "syncHostStyles": true,
     "waitForStyles": true,
   },
   "instanceId": "_r_5_",
   "metadata": undefined,
   "nodes": {
-    "nodes": {},
     "registerNode": [Function],
+    "setOverlayVisible": [Function],
+    "syncNode": [Function],
+    "syncNodes": [Function],
     "unregisterNode": [Function],
   },
   "onAction": undefined,
@@ -244,6 +253,7 @@ exports[`Puck should generate the correct state on mount 1`] = `
         "focus": null,
       },
       "isDragging": false,
+      "itemExpanded": {},
       "itemSelector": null,
       "leftSideBarVisible": false,
       "plugin": {

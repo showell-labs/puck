@@ -599,6 +599,7 @@ const DragDropContextClient = ({
 
           if (dragMode.current === "new") {
             const isLinePlaceholder =
+              !forcedNewItemPosition &&
               resolveDndMode(behavior, { isNewComponent: true }) === "static";
 
             if (isLinePlaceholder) {

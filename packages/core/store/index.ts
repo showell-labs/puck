@@ -2,6 +2,7 @@
 
 import {
   Config,
+  DndConfig,
   IframeConfig,
   Overrides,
   AppState,
@@ -20,7 +21,7 @@ import { createReducer, PuckAction } from "../reducer";
 import { getItem } from "../lib/data/get-item";
 import { defaultViewports } from "../components/ViewportControls/default-viewports";
 import { Viewports } from "../types";
-import { create, StoreApi, useStore } from "zustand";
+import { create, useStore } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import { createContext, useContext } from "react";
 import { createHistorySlice, type HistorySlice } from "./slices/history";
@@ -36,6 +37,7 @@ import { toRoot } from "../lib/data/to-root";
 import { generateId } from "../lib/generate-id";
 import { defaultAppState } from "./default-app-state";
 import { FieldTransforms } from "../types/API/FieldTransforms";
+import type { Dictionary } from "../lib/dictionary";
 import type { Editor } from "@tiptap/react";
 
 export { defaultAppState };
@@ -80,12 +82,16 @@ export type AppStore<
   status: Status;
   setStatus: (status: Status) => void;
   iframe: IframeConfig;
+  _experimentalFullScreenCanvas: boolean;
+  _experimentalVirtualization: boolean;
   selectedItem?: G["UserData"]["content"][0] | null;
   getCurrentData: () => G["UserData"]["content"][0] | G["UserData"]["root"];
   setUi: (ui: Partial<UiState>, recordHistory?: boolean) => void;
   getComponentConfig: (type?: string) => ComponentConfig | null | undefined;
   onAction?: (action: PuckAction, newState: AppState, state: AppState) => void;
   metadata: Metadata;
+  dictionary: Dictionary;
+  dnd?: DndConfig;
   fields: FieldsSlice;
   history: HistorySlice;
   nodes: NodesSlice;
@@ -99,8 +105,6 @@ export type AppStore<
     id: string;
   } | null;
 };
-
-export type AppStoreApi = StoreApi<AppStore>;
 
 const defaultPageFields: Record<string, Field> = {
   title: { type: "text" },
@@ -123,7 +127,11 @@ export const createAppStore = (initialAppStore?: Partial<AppStore>) =>
       },
       status: "LOADING",
       iframe: {},
+      _experimentalFullScreenCanvas: false,
+      _experimentalVirtualization: false,
       metadata: {},
+      dictionary: {},
+      dnd: {},
       fieldTransforms: {},
       ...initialAppStore,
       fields: createFieldsSlice(set, get),
@@ -293,7 +301,8 @@ export const createAppStore = (initialAppStore?: Partial<AppStore>) =>
             timeouts[id]();
           },
           trigger,
-          parentData
+          parentData,
+          state.data.root
         );
       },
       resolveAndCommitData: async () => {
@@ -303,7 +312,11 @@ export const createAppStore = (initialAppStore?: Partial<AppStore>) =>
           state,
           config,
           (content) => content,
-          (childItem) => {
+          (childItem, path) => {
+            // Skip nested items as these get processed by the parent's resolveComponentData
+            // Perf: wasteful to use walkAppState, which walks the entire tree
+            if (path.length > 1) return childItem;
+
             resolveComponentData(childItem, "load").then((resolved) => {
               const { state } = get();
 
@@ -342,14 +355,31 @@ export const createAppStore = (initialAppStore?: Partial<AppStore>) =>
     }))
   );
 
-export const appStoreContext = createContext(createAppStore());
+// Derived from createAppStore so it keeps the zustand middleware augmentations
+// (e.g. subscribeWithSelector's two-argument subscribe overload).
+export type AppStoreApi = ReturnType<typeof createAppStore>;
+
+export const appStoreContext = createContext<AppStoreApi | null>(null);
+
+// Fallback store used only when a component reads the store outside of a <Puck> provider (e.g. <Render> for SSR).
+// Created lazily instead of at module scope so that importing @puckeditor/core has no side effects that might
+// be unsupported in edge runtimes
+let defaultAppStore: AppStoreApi | null = null;
+
+const getDefaultAppStore = (): AppStoreApi => {
+  if (!defaultAppStore) {
+    defaultAppStore = createAppStore();
+  }
+
+  return defaultAppStore;
+};
 
 export function useAppStore<T>(selector: (state: AppStore) => T) {
-  const context = useContext(appStoreContext);
+  const context = useContext(appStoreContext) ?? getDefaultAppStore();
 
   return useStore(context, selector);
 }
 
 export function useAppStoreApi() {
-  return useContext(appStoreContext);
+  return useContext(appStoreContext) ?? getDefaultAppStore();
 }

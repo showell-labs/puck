@@ -34,6 +34,7 @@ const keys = [
   "z",
   "delete",
   "backspace",
+  "altRight",
 ] as const;
 
 type KeyStrict = (typeof keys)[number];
@@ -76,9 +77,10 @@ const keyCodeMap: KeyCodeMap = {
   KeyZ: "z",
   Delete: "delete",
   Backspace: "backspace",
+  AltRight: "altRight",
 };
 
-const useHotkeyStore = create<{
+export const useHotkeyStore = create<{
   held: KeyMap;
   hold: (key: string) => void;
   release: (key: string) => void;
@@ -96,11 +98,47 @@ const useHotkeyStore = create<{
   }))
 );
 
+/**
+ * Syncs the tracked modifier state (ctrl/meta/shift) to match the real state reported by the event.
+ *
+ * Every KeyboardEvent carries the ground-truth for ctrl/meta/shift, so reconciling
+ * here self-heals a modifier left "stuck" when its keyup was missed, e.g. because it
+ * was released while another window had focus after an alt-tab or window switch.
+ *
+ * @param e - The KeyboardEvent to sync the state with.
+ */
+const syncModifierState = (e: KeyboardEvent) => {
+  const { hold, release } = useHotkeyStore.getState();
+  const modifiers: [KeyStrict, boolean][] = [
+    ["ctrl", e.ctrlKey],
+    ["meta", e.metaKey],
+    ["shift", e.shiftKey],
+  ];
+
+  modifiers.forEach(([modifier, isPressed]) => {
+    if (isPressed) {
+      hold(modifier);
+    } else {
+      release(modifier);
+    }
+  });
+};
+
 export const monitorHotkeys = (doc: Document) => {
   const onKeyDown = (e: KeyboardEvent) => {
+    // If altGraphKey (Alt Right) is pressed, register altRight instead of mapping ControlRight to ctrl
+    if (e.getModifierState("AltGraph")) {
+      useHotkeyStore.getState().hold("altRight");
+      return;
+    }
+
     const key = keyCodeMap[e.code];
 
     if (key) {
+      // Sync the state modifier keys with the event before evaluating triggers, so a
+      // modifier left "stuck" from a missed keyup/blur can't fire a combo on its own.
+      syncModifierState(e);
+
       useHotkeyStore.getState().hold(key);
 
       const { held, triggers } = useHotkeyStore.getState();
@@ -131,6 +169,12 @@ export const monitorHotkeys = (doc: Document) => {
   };
 
   const onKeyUp = (e: KeyboardEvent) => {
+    // Check if Alt Right (AltGraph) was released
+    if (!e.getModifierState("AltGraph") && e.code === "ControlRight") {
+      useHotkeyStore.getState().release("altRight");
+      return;
+    }
+
     const key = keyCodeMap[e.code];
 
     if (key) {

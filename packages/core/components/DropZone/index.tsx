@@ -1,5 +1,6 @@
 import {
   CSSProperties,
+  Ref,
   forwardRef,
   memo,
   useCallback,
@@ -10,7 +11,7 @@ import {
 } from "react";
 import { DraggableComponent } from "../DraggableComponent";
 import { setupZone } from "../../lib/data/setup-zone";
-import { rootDroppableId } from "../../lib/root-droppable-id";
+import { rootAreaId, rootDroppableId } from "../../lib/root-droppable-id";
 import { getClassNameFactory } from "../../lib";
 import styles from "./styles.module.css";
 import {
@@ -25,7 +26,6 @@ import {
   ComponentData,
   Config,
   DragAxis,
-  Fields,
   Metadata,
   Overrides,
   PuckContext,
@@ -33,6 +33,7 @@ import {
 } from "../../types";
 
 import { useDroppable, UseDroppableInput } from "@dnd-kit/react";
+import { isComponentAllowed } from "../../lib/data/is-component-allowed";
 import { DrawerItemInner } from "../Drawer";
 import { pointerIntersection } from "@dnd-kit/collision";
 import { UniqueIdentifier } from "@dnd-kit/abstract";
@@ -47,12 +48,15 @@ import { useSlots } from "../../lib/use-slots";
 import { ContextSlotRender, SlotRenderPure } from "../SlotRender";
 import { expandNode } from "../../lib/data/flatten-node";
 import { useFieldTransformsTracked } from "../../lib/field-transforms/use-field-transforms-tracked";
+import { useMessage } from "../../lib/use-message";
 import { getInlineTextTransform } from "../../lib/field-transforms/default-transforms/inline-text-transform";
 import { getSlotTransform } from "../../lib/field-transforms/default-transforms/slot-transform";
 import { getRichTextTransform } from "../../lib/field-transforms/default-transforms/rich-text-transform";
 import { FieldTransforms } from "../../types/API/FieldTransforms";
 import { useRichtextProps } from "../RichTextEditor/lib/use-richtext-props";
 import { MemoizeComponent } from "../MemoizeComponent";
+import { VirtualizedDropZone } from "./VirtualizedDropZone";
+import { LinePlaceholder } from "./LinePlaceholder";
 
 const getClassName = getClassNameFactory("DropZone", styles);
 
@@ -100,6 +104,7 @@ const DropZoneChild = ({
   dragAxis,
   collisionAxis,
   inDroppableZone,
+  itemRef,
 }: {
   zoneCompound: string;
   componentId: string;
@@ -107,6 +112,7 @@ const DropZoneChild = ({
   dragAxis: DragAxis;
   collisionAxis?: DragAxis;
   inDroppableZone: boolean;
+  itemRef?: Ref<HTMLElement>;
 }) => {
   const metadata = useAppStore((s) => s.metadata);
 
@@ -177,7 +183,12 @@ const DropZoneChild = ({
     (s) => s.selectedItem?.props.id === componentId || false
   );
 
-  let label = componentConfig?.label ?? item?.type.toString() ?? "Component";
+  const componentLabel = useMessage("label-component");
+  const noConfigMessage = useMessage("canvas-noconfig", {
+    type: item?.type?.toString() ?? "",
+  });
+
+  let label = componentConfig?.label ?? item?.type.toString() ?? componentLabel;
 
   const defaultsProps = useMemo(
     () => ({
@@ -228,7 +239,7 @@ const DropZoneChild = ({
     ? componentConfig.render
     : () => (
         <div style={{ padding: 48, textAlign: "center" }}>
-          No configuration for {item.type}
+          {noConfigMessage}
         </div>
       );
 
@@ -250,6 +261,7 @@ const DropZoneChild = ({
       autoDragAxis={dragAxis}
       userDragAxis={collisionAxis}
       inDroppableZone={inDroppableZone}
+      itemRef={itemRef}
     >
       {(dragRef) => {
         if (componentConfig?.inline && !isInserting) {
@@ -373,30 +385,8 @@ export const DropZoneEdit = forwardRef<HTMLDivElement, DropZoneProps>(
     const ref = useRef<HTMLDivElement | null>(null);
 
     const acceptsTarget = useCallback(
-      (componentType: string | null | undefined) => {
-        if (!componentType) {
-          return true;
-        }
-
-        if (disallow) {
-          const defaultedAllow = allow || [];
-
-          // remove any explicitly allowed items from disallow
-          const filteredDisallow = (disallow || []).filter(
-            (item) => defaultedAllow.indexOf(item) === -1
-          );
-
-          if (filteredDisallow.indexOf(componentType) !== -1) {
-            return false;
-          }
-        } else if (allow) {
-          if (allow.indexOf(componentType) === -1) {
-            return false;
-          }
-        }
-
-        return true;
-      },
+      (componentType: string | null | undefined) =>
+        isComponentAllowed(componentType, { allow, disallow }),
       [allow, disallow]
     );
 
@@ -437,11 +427,14 @@ export const DropZoneEdit = forwardRef<HTMLDivElement, DropZoneProps>(
       zoneCompound
     );
 
-    const isDropEnabled =
-      isEnabled &&
-      (preview
-        ? contentIdsWithPreview.length === 1
-        : contentIdsWithPreview.length === 0);
+    // contentIdsWithPreview counts a non-line preview as one injected
+    // placeholder, but a line placeholder injects nothing. So a zone
+    // is empty (and a valid drop target) when its only
+    // entry, if any, is that injected placeholder.
+    // Otherwise the children within the zone should be the targets.
+    const injectedPreviewCount = preview && !preview.linePlaceholder ? 1 : 0;
+    const isZoneEmpty = contentIdsWithPreview.length === injectedPreviewCount;
+    const isDropEnabled = isEnabled && isZoneEmpty;
 
     const zoneStore = useContext(ZoneStoreContext);
 
@@ -487,6 +480,10 @@ export const DropZoneEdit = forwardRef<HTMLDivElement, DropZoneProps>(
       [dropRef]
     );
 
+    const _experimentalVirtualization = useAppStore(
+      (s) => s._experimentalVirtualization
+    );
+
     const config = useAppStore((s) => s.config);
 
     const Wrapper = useMemo(
@@ -495,6 +492,8 @@ export const DropZoneEdit = forwardRef<HTMLDivElement, DropZoneProps>(
     );
 
     const El = as ?? Wrapper;
+    const isRootAreaZone = (areaId ?? rootAreaId) === rootAreaId && depth === 0;
+    const shouldVirtualizeItems = _experimentalVirtualization && isRootAreaZone;
 
     return (
       <El
@@ -512,15 +511,32 @@ export const DropZoneEdit = forwardRef<HTMLDivElement, DropZoneProps>(
         style={
           {
             ...style,
-            "--min-empty-height": minEmptyHeight,
+            "--puck-slot-min-empty-height": minEmptyHeight,
             backgroundColor: RENDER_DEBUG
               ? getRandomColor()
               : style?.backgroundColor,
           } as CSSProperties
         }
       >
-        {contentIdsWithPreview.map((componentId, i) => {
-          return (
+        {shouldVirtualizeItems ? (
+          <VirtualizedDropZone
+            contentIds={contentIdsWithPreview}
+            zoneCompound={zoneCompound}
+            renderItem={(props) => (
+              <DropZoneChildMemo
+                key={props.componentId}
+                zoneCompound={zoneCompound}
+                componentId={props.componentId}
+                dragAxis={dragAxis}
+                index={props.index}
+                collisionAxis={collisionAxis}
+                inDroppableZone={targetAccepted}
+                itemRef={props.measureRef}
+              />
+            )}
+          />
+        ) : (
+          contentIdsWithPreview.map((componentId, i) => (
             <DropZoneChildMemo
               key={componentId}
               zoneCompound={zoneCompound}
@@ -530,8 +546,15 @@ export const DropZoneEdit = forwardRef<HTMLDivElement, DropZoneProps>(
               collisionAxis={collisionAxis}
               inDroppableZone={targetAccepted}
             />
-          );
-        })}
+          ))
+        )}
+        {preview?.linePlaceholder && (
+          <LinePlaceholder
+            zoneRef={ref}
+            contentIds={contentIds}
+            index={preview.index}
+          />
+        )}
       </El>
     );
   }
